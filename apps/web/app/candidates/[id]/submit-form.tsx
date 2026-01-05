@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { apiPost } from "../../../lib/api";
+import { apiPost } from "@/lib/api";
 
 export default function SubmitForm({ candidateId }: { candidateId: number }) {
   const [vote, setVote] = useState<number>(0);

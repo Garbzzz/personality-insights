@@ -1,4 +1,4 @@
-import { apiGet } from "../../../lib/api";
+import { apiGet } from "@/lib/api";
 import SubmitForm from "./submit-form";
 
 type Submission = {
@@ -9,8 +9,22 @@ type Submission = {
   created_at: string;
 };
 
-export default async function CandidatePage({ params }: { params: { id: string } }) {
-  const candidateId = Number(params.id);
+export default async function CandidatePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params; // ✅ unwrap promise
+  const candidateId = Number(id);
+
+  if (!Number.isFinite(candidateId)) {
+    return (
+      <main style={{ padding: 24 }}>
+        <h1>Bad candidate id</h1>
+        <p>id: {id}</p>
+      </main>
+    );
+  }
 
   const submissions = await apiGet<Submission[]>(
     `/candidates/${candidateId}/submissions`
