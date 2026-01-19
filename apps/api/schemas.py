@@ -23,3 +23,19 @@ class SubmissionOut(BaseModel):
     created_at: datetime
     class Config:
         from_attributes = True
+class VoteSummary(BaseModel):
+    yes: int
+    neutral: int
+    no: int
+    score: int
+
+class TraitItem(BaseModel):
+    label: str
+    count: int
+    examples: list[str]
+
+class CandidateProfileOut(BaseModel):
+    candidate_id: int
+    vote_summary: VoteSummary
+    positives: list[TraitItem]
+    negatives: list[TraitItem]

@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from db import SessionLocal
 from models import Candidate, Submission
 from schemas import CandidateCreate, CandidateOut, SubmissionCreate, SubmissionOut
+from nlp import build_profile
+from schemas import CandidateProfileOut, VoteSummary, TraitItem
 
 app = FastAPI()
 app.add_middleware(
@@ -68,3 +70,30 @@ def list_submissions(candidate_id: int, db: Session = Depends(get_db)):
         .order_by(Submission.created_at.desc())
         .all()
     )
+@app.get("/candidates/{candidate_id}/profile", response_model=CandidateProfileOut)
+def candidate_profile(candidate_id: int, db: Session = Depends(get_db)):
+    c = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    subs = (
+        db.query(Submission)
+        .filter(Submission.candidate_id == candidate_id)
+        .order_by(Submission.created_at.desc())
+        .all()
+    )
+
+    yes = sum(1 for s in subs if s.vote == 1)
+    neutral = sum(1 for s in subs if s.vote == 0)
+    no = sum(1 for s in subs if s.vote == -1)
+    score = yes - no
+
+    comments = [s.comment for s in subs]
+    prof = build_profile(comments, top_k=8)
+
+    return {
+        "candidate_id": candidate_id,
+        "vote_summary": {"yes": yes, "neutral": neutral, "no": no, "score": score},
+        "positives": prof["positives"],
+        "negatives": prof["negatives"],
+    }
