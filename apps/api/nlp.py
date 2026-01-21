@@ -33,9 +33,9 @@ def sentence_polarity(sentence: str) -> int:
     compound = scores["compound"]
 
     # thresholds: tweak later
-    if compound >= 0.25:
+    if compound >= 0.15:
         return 1
-    if compound <= -0.25:
+    if compound <= -0.15:
         return -1
     return 0
 
@@ -149,7 +149,21 @@ def extract_candidate_phrases(sentence: str) -> List[str]:
     return out
 
 
-def analyze_comment(comment: str) -> List[Tuple[int, str, str]]:
+def analyze_comment(comment: str, vote: int) -> List[Tuple[int, str, str]]:
+    comment = (comment or "").strip()
+    if not comment:
+        return []
+
+    # NEW: If the comment is super short (e.g. "chiller", "outgoing", "rude"),
+    # treat it as a direct trait and trust the vote polarity.
+    # This fixes slang / one-word feedback that spaCy may not chunk well.
+    if len(comment.split()) <= 3:
+        if vote == 1:
+            return [(1, comment, comment)]
+        if vote == -1:
+            return [(-1, comment, comment)]
+        return []
+
     doc = _NLP(comment)
     results: List[Tuple[int, str, str]] = []
 
@@ -158,10 +172,14 @@ def analyze_comment(comment: str) -> List[Tuple[int, str, str]]:
         if not s:
             continue
 
-        # NEW: split sentence on contrast markers and score each chunk separately
         chunks = split_on_contrast(s)
         for chunk in chunks:
             pol = sentence_polarity(chunk)
+
+            # if user voted -1 and sentiment is neutral, treat as negative
+            if pol == 0 and vote == -1:
+                pol = -1
+
             if pol == 0:
                 continue
 
@@ -180,25 +198,180 @@ _STOP_WORDS = {
 }
 # Map variants/synonyms -> canonical trait label
 # Keep this small + intentional (easy to explain + avoids bad merges)
-_SYNONYM_MAP = {
-    # positive cluster
-    "friendly": "nice",
-    "kind": "nice",
-    "pleasant": "nice",
+# ----------------------------
+# Trait normalization
+# ----------------------------
 
-    # chill cluster
-    "chiller": "chill",
-    "chill": "chill",
-    "chill person": "chill",
+# Multi-word phrases first (most precise)
+_PHRASE_MAP = {
+    # communication style / respect
+    "talks over people": "interrupts",
+    "talks over others": "interrupts",
+    "talks over": "interrupts",
+    "cuts people off": "interrupts",
+    "cuts others off": "interrupts",
+    "interrupts people": "interrupts",
+    "interrupts others": "interrupts",
+    "doesnt listen": "poor listener",
+    "doesn't listen": "poor listener",
+    "not a good listener": "poor listener",
+    "poor listener": "poor listener",
+    "doesnt listen well": "poor listener",
+    "doesn't listen well": "poor listener",
+
+    "came across disrespectful": "rude",
+    "was disrespectful": "rude",
+    "acted disrespectful": "rude",
+    "rude to people": "rude",
+    "rude to others": "rude",
+    "mean to people": "mean",
+    "mean to others": "mean",
+    "talks down to people": "condescending",
+    "talks down to others": "condescending",
+    "looked down on people": "condescending",
+    "looked down on others": "condescending",
+
+    # teamwork / social
+    "easy to talk to": "approachable",
+    "easy to speak with": "approachable",
+    "easy to communicate with": "approachable",
+    "good to talk to": "approachable",
+
+    "gets along with others": "team player",
+    "works well with others": "team player",
+    "good with others": "team player",
+    "good teammate": "team player",
+    "team player": "team player",
+
+    "good leader": "leadership",
+    "natural leader": "leadership",
+    "shows leadership": "leadership",
+
+    # vibe / energy
     "laid back": "chill",
     "easygoing": "chill",
+    "easy going": "chill",
+    "go with the flow": "chill",
+    "lowkey": "chill",
 
-    # common negatives
-    "annoying": "annoying",
-    "interrupts": "talks over people",
-    "talks over people": "talks over people",
-    "talk over people": "talks over people",
+    # reliability
+    "shows up on time": "punctual",
+    "always on time": "punctual",
+    "on time": "punctual",
+
+    "hard working": "hardworking",
+    "works hard": "hardworking",
+    "puts in effort": "hardworking",
+    "high effort": "hardworking",
+
+    "didnt try": "low effort",
+    "didn't try": "low effort",
+    "low effort": "low effort",
+    "seemed lazy": "lazy",
+
+    # social dominance
+    "takes over conversations": "dominates conversation",
+    "dominates conversations": "dominates conversation",
+    "dominates conversation": "dominates conversation",
+
+    # positivity / friendliness
+    "very nice guy": "nice",
+    "nice guy": "nice",
+    "nice person": "nice",
+    "really nice": "nice",
+    "super nice": "nice",
+
+    "very friendly": "friendly",
+    "super friendly": "friendly",
+    "really friendly": "friendly",
+    "friendly guy": "friendly",
+    "friendly person": "friendly",
+
+    # confidence / behavior
+    "too confident": "arrogant",
+    "overconfident": "arrogant",
+    "full of himself": "arrogant",
+    "full of herself": "arrogant",
+    "acts better than others": "arrogant",
+
+    # maturity
+    "immature behavior": "immature",
+    "acts immature": "immature",
+    "seemed immature": "immature",
+
+    # boring / indifferent
+    "kind of boring": "boring",
+    "pretty boring": "boring",
+    "seemed boring": "boring",
 }
+
+# Single-word mapping (less precise, so keep conservative)
+_WORD_MAP = {
+    # positives
+    "friendly": "friendly",
+    "nice": "nice",
+    "kind": "nice",
+    "sweet": "nice",
+    "polite": "polite",
+    "respectful": "respectful",
+    "funny": "funny",
+    "hilarious": "funny",
+    "humorous": "funny",
+    "outgoing": "outgoing",
+    "social": "outgoing",
+    "confident": "confident",
+    "approachable": "approachable",
+    "chill": "chill",
+    "chiller": "chill",
+    "easygoing": "chill",
+    "laidback": "chill",
+    "hardworking": "hardworking",
+    "reliable": "reliable",
+    "punctual": "punctual",
+    "helpful": "helpful",
+    "supportive": "supportive",
+    "motivated": "motivated",
+    "driven": "motivated",
+    "smart": "smart",
+    "intelligent": "smart",
+    "curious": "curious",
+
+    # negatives
+    "rude": "rude",
+    "disrespectful": "rude",
+    "mean": "mean",
+    "annoying": "annoying",
+    "arrogant": "arrogant",
+    "condescending": "condescending",
+    "dismissive": "dismissive",
+    "lazy": "lazy",
+    "boring": "boring",
+    "immature": "immature",
+    "awkward": "awkward",
+    "quiet": "quiet",  # neutral-ish trait; keep but use with caution
+    "shy": "shy",
+    "aggressive": "aggressive",
+    "argumentative": "argumentative",
+    "unreliable": "unreliable",
+    "inconsistent": "unreliable",
+    "late": "unpunctual",
+    "unpunctual": "unpunctual",
+    "interrupts": "interrupts",
+}
+
+def apply_synonyms(trait: str) -> str:
+    t = normalize_phrase(trait)
+
+    # phrase map first
+    if t in _PHRASE_MAP:
+        return _PHRASE_MAP[t]
+
+    # then single word map (only if it's exactly one word)
+    if " " not in t and t in _WORD_MAP:
+        return _WORD_MAP[t]
+
+    return t
+
 
 def canonicalize(trait: str) -> str:
     """
@@ -223,27 +396,66 @@ def canonicalize(trait: str) -> str:
         cleaned = " ".join(tokens[:3])  # cap length
 
     # Apply synonym map (controlled merges)
-    return _SYNONYM_MAP.get(cleaned, cleaned)
+    return apply_synonyms(cleaned)
+from embeddings import embed_texts
+from qdrant_utils import search_trait, upsert_trait
 
-def build_profile(submission_comments: List[str], top_k: int = 8) -> Dict:
-    #
-    #Aggregates all extracted traits into ranked positives/negatives with examples.
-    #
+import random
+_NEXT_ID = random.randint(100000, 999999)
+
+
+def group_trait(trait: str, threshold: float = 0.75) -> str:
+    global _NEXT_ID
+
+    vec = embed_texts([trait])[0]
+    hits = search_trait(vec, limit=1)
+
+    if hits and hits[0].score is not None and hits[0].score >= threshold:
+        payload = hits[0].payload or {}
+        label = payload.get("label")
+
+        print(f"[group_trait] '{trait}' -> '{label}' score={hits[0].score:.3f}")
+        if isinstance(label, str) and label:
+            return label
+
+    # new trait cluster
+    point_id = _NEXT_ID
+    _NEXT_ID += 1
+    upsert_trait(point_id, vec, trait)
+    print(f"[group_trait] NEW CLUSTER '{trait}' id={point_id}")
+    return trait
+
+
+def build_profile(submissions: List[Tuple[int, str]], top_k: int = 8) -> Dict:
+    """
+    submissions: list of (vote, comment)
+    """
     pos_counts: Dict[str, int] = {}
     neg_counts: Dict[str, int] = {}
     pos_examples: Dict[str, List[str]] = {}
     neg_examples: Dict[str, List[str]] = {}
 
-    for comment in submission_comments:
-        for pol, trait, evidence in analyze_comment(comment):
+    for vote, comment in submissions:
+        if not comment.strip():
+            continue
+
+        if vote == 0:
+            continue
+        for pol, trait, evidence in analyze_comment(comment, vote):
             trait = canonicalize(trait)
+
+            # If you're also doing Qdrant grouping, keep this:
+            try:
+                trait = group_trait(trait)
+            except Exception:
+                pass
 
             if pol > 0:
                 pos_counts[trait] = pos_counts.get(trait, 0) + 1
                 pos_examples.setdefault(trait, [])
                 if len(pos_examples[trait]) < 3 and evidence not in pos_examples[trait]:
                     pos_examples[trait].append(evidence)
-            elif pol < 0:
+            else:
                 neg_counts[trait] = neg_counts.get(trait, 0) + 1
                 neg_examples.setdefault(trait, [])
                 if len(neg_examples[trait]) < 3 and evidence not in neg_examples[trait]:
@@ -262,3 +474,4 @@ def build_profile(submission_comments: List[str], top_k: int = 8) -> Dict:
             for label, count in negatives
         ],
     }
+

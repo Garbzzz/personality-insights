@@ -1,5 +1,9 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import Optional
+
+class CandidateUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=120)
 
 class CandidateCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
@@ -11,9 +15,11 @@ class CandidateOut(BaseModel):
     class Config:
         from_attributes = True
 
+from typing import Optional
+
 class SubmissionCreate(BaseModel):
     vote: int
-    comment: str = Field(min_length=1)
+    comment: Optional[str] = None
 
 class SubmissionOut(BaseModel):
     id: int

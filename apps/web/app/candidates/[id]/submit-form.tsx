@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 import { apiPost } from "@/lib/api";
+import { useRouter } from "next/navigation";
+
 
 export default function SubmitForm({ candidateId }: { candidateId: number }) {
   const [vote, setVote] = useState<number>(0);
   const [comment, setComment] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const router = useRouter();
+
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -14,8 +18,10 @@ export default function SubmitForm({ candidateId }: { candidateId: number }) {
 
     await apiPost(`/candidates/${candidateId}/submissions`, { vote, comment });
 
-    setMsg("Submitted! Refreshing...");
-    window.location.reload();
+    setComment("");
+
+    router.refresh();
+
   }
 
   return (
@@ -30,7 +36,7 @@ export default function SubmitForm({ candidateId }: { candidateId: number }) {
       </label>
 
       <label>
-        Notes:
+        Notes(Optional):
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}

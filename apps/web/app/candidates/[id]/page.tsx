@@ -33,13 +33,10 @@ export default async function CandidatePage({
     );
   }
 
-  // Fetch submissions (this already exists)
   const submissions = await apiGet<Submission[]>(
     `/candidates/${candidateId}/submissions`
   );
 
-  // Fetch profile (this will work after we add the backend endpoint)
-  // For now, we wrap in try/catch so your page doesn't break.
   let profile: Profile | null = null;
   try {
     profile = await apiGet<Profile>(`/candidates/${candidateId}/profile`);
@@ -48,54 +45,111 @@ export default async function CandidatePage({
   }
 
   return (
-    <main style={{ padding: 24 }}>
-      <h1>Candidate #{candidateId}</h1>
+    <main style={{ padding: 24, maxWidth: 1000, margin: "0 auto" }}>
+      <h1 style={{ fontSize: 28, marginBottom: 10 }}>Candidate #{candidateId}</h1>
 
       <SubmitForm candidateId={candidateId} />
 
       <section style={{ marginTop: 20 }}>
-        <h2>Profile</h2>
+        <h2 style={{ fontSize: 20, marginBottom: 8 }}>Profile</h2>
 
         {!profile ? (
           <p style={{ opacity: 0.8 }}>
-            Profile endpoint not ready yet (once /profile is implemented, this will populate).
+            Profile endpoint not ready yet (once /profile is implemented, this will
+            populate).
           </p>
         ) : (
           <>
-            <p>
-              Yes: {profile.vote_summary.yes} | Neutral:{" "}
-              {profile.vote_summary.neutral} | No: {profile.vote_summary.no} | Score:{" "}
-              {profile.vote_summary.score}
-            </p>
+            {/* Vote summary card */}
+            <div
+              style={{
+                border: "1px solid #ddd",
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 14,
+              }}
+            >
+              <b>Votes:</b> Yes {profile.vote_summary.yes} | Neutral{" "}
+              {profile.vote_summary.neutral} | No {profile.vote_summary.no} |{" "}
+              <b>Score:</b> {profile.vote_summary.score}
+            </div>
 
+            {/* Traits cards */}
             <div
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
-                gap: 16,
-                marginTop: 12,
+                gap: 14,
               }}
             >
-              <div>
-                <h3>Top Positives</h3>
-                <ul>
-                  {profile.positives.map((t) => (
-                    <li key={t.label}>
-                      <b>{t.label}</b> ({t.count})
-                    </li>
-                  ))}
-                </ul>
+              <div
+                style={{
+                  border: "1px solid #ddd",
+                  borderRadius: 12,
+                  padding: 12,
+                }}
+              >
+                <h3 style={{ marginTop: 0 }}>Top Positives</h3>
+
+                {profile.positives.length === 0 ? (
+                  <p style={{ opacity: 0.7 }}>No positive traits yet.</p>
+                ) : (
+                  <ul style={{ paddingLeft: 18 }}>
+                    {profile.positives.map((t) => (
+                      <li key={t.label} style={{ marginBottom: 8 }}>
+                        <b>{t.label}</b> ({t.count})
+
+                        {t.examples?.length ? (
+                          <details style={{ marginTop: 6 }}>
+                            <summary>evidence</summary>
+                            <ul style={{ paddingLeft: 18 }}>
+                              {t.examples.map((ex, i) => (
+                                <li key={i} style={{ opacity: 0.9 }}>
+                                  {ex}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
-              <div>
-                <h3>Top Concerns</h3>
-                <ul>
-                  {profile.negatives.map((t) => (
-                    <li key={t.label}>
-                      <b>{t.label}</b> ({t.count})
-                    </li>
-                  ))}
-                </ul>
+              <div
+                style={{
+                  border: "1px solid #ddd",
+                  borderRadius: 12,
+                  padding: 12,
+                }}
+              >
+                <h3 style={{ marginTop: 0 }}>Top Concerns</h3>
+
+                {profile.negatives.length === 0 ? (
+                  <p style={{ opacity: 0.7 }}>No concerns yet.</p>
+                ) : (
+                  <ul style={{ paddingLeft: 18 }}>
+                    {profile.negatives.map((t) => (
+                      <li key={t.label} style={{ marginBottom: 8 }}>
+                        <b>{t.label}</b> ({t.count})
+
+                        {t.examples?.length ? (
+                          <details style={{ marginTop: 6 }}>
+                            <summary>evidence</summary>
+                            <ul style={{ paddingLeft: 18 }}>
+                              {t.examples.map((ex, i) => (
+                                <li key={i} style={{ opacity: 0.9 }}>
+                                  {ex}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           </>

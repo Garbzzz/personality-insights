@@ -24,3 +24,22 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+.select-field {
+  background-color: #e5e7eb; /* gray-200, blends with cards */
+  color: #111827;            /* near-black text */
+  border: 1px solid #d1d5db; /* soft border */
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+}
+
+.select-field:hover {
+  background-color: #e2e8f0; /* subtle hover lift */
+}
+
+.select-field:focus {
+  outline: none;
+  background-color: #e5e7eb;
+  border-color: #9ca3af;     /* neutral focus (not blue) */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+}

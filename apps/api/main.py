@@ -11,6 +11,7 @@ from models import Candidate, Submission
 from schemas import CandidateCreate, CandidateOut, SubmissionCreate, SubmissionOut
 from nlp import build_profile
 from schemas import CandidateProfileOut, VoteSummary, TraitItem
+from schemas import CandidateUpdate
 
 app = FastAPI()
 app.add_middleware(
@@ -53,7 +54,9 @@ def add_submission(candidate_id: int, payload: SubmissionCreate, db: Session = D
     if not c:
         raise HTTPException(status_code=404, detail="Candidate not found")
 
-    s = Submission(candidate_id=candidate_id, vote=payload.vote, comment=payload.comment)
+    comment = (payload.comment or "").strip()
+    s = Submission(candidate_id=candidate_id, vote=payload.vote, comment=comment)
+
     db.add(s)
     db.commit()
     db.refresh(s)
@@ -88,8 +91,9 @@ def candidate_profile(candidate_id: int, db: Session = Depends(get_db)):
     no = sum(1 for s in subs if s.vote == -1)
     score = yes - no
 
-    comments = [s.comment for s in subs]
-    prof = build_profile(comments, top_k=8)
+    pairs = [(s.vote, s.comment) for s in subs]
+    prof = build_profile(pairs, top_k=8)
+
 
     return {
         "candidate_id": candidate_id,
@@ -97,3 +101,26 @@ def candidate_profile(candidate_id: int, db: Session = Depends(get_db)):
         "positives": prof["positives"],
         "negatives": prof["negatives"],
     }
+@app.patch("/candidates/{candidate_id}", response_model=CandidateOut)
+def update_candidate(candidate_id: int, payload: CandidateUpdate, db: Session = Depends(get_db)):
+    c = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    if payload.name is not None:
+        c.name = payload.name.strip()
+
+    db.commit()
+    db.refresh(c)
+    return c
+
+
+@app.delete("/candidates/{candidate_id}")
+def delete_candidate(candidate_id: int, db: Session = Depends(get_db)):
+    c = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    db.delete(c)
+    db.commit()
+    return {"status": "deleted", "candidate_id": candidate_id}
