@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "../components/ui";
 import CandidatesClient from "./candidates-client";
+import { UserButton } from "@clerk/nextjs";
 
 export default function CandidatesPage() {
   return (

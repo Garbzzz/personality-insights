@@ -36,18 +36,33 @@ function VoteTile({
   );
 }
 
-export default function SubmitVoteForm() {
+export default function SubmitVoteForm({
+    initialCandidateId,
+  }: {
+    initialCandidateId: number | null;
+  }) {
   const router = useRouter();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [candidateId, setCandidateId] = useState<number | "">("");
+  const [candidateId, setCandidateId] = useState<number | "">(
+    initialCandidateId ?? ""
+  );
   const [vote, setVote] = useState<number>(0);
   const [comment, setComment] = useState<string>("");
   const [msg, setMsg] = useState<string | null>(null);
-
+  
   useEffect(() => {
-    apiGet<Candidate[]>("/candidates").then(setCandidates).catch(() => setCandidates([]));
-  }, []);
-
+    apiGet<Candidate[]>("/candidates")
+      .then((list) => {
+        setCandidates(list);
+  
+        if (initialCandidateId != null) {
+          const exists = list.some((c) => c.id === initialCandidateId);
+          if (exists) setCandidateId(initialCandidateId);
+        }
+      })
+      .catch(() => setCandidates([]));
+  }, [initialCandidateId]);
+  
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type React from "react";
 
 export function Card({
   children,
@@ -23,12 +24,18 @@ export function Card({
 export function CardBody({
   children,
   className = "",
-}: {
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & {
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={["p-6", className].join(" ")}>{children}</div>;
+  return (
+    <div className={["p-6", className].join(" ")} {...props}>
+      {children}
+    </div>
+  );
 }
+
 
 export function Button({
   children,
@@ -41,7 +48,7 @@ export function Button({
   children: React.ReactNode;
   className?: string;
   type?: "button" | "submit";
-  onClick?: () => void;
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
   variant?: "primary" | "ghost" | "outline";
   href?: string;
 }) {
