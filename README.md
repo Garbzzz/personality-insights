@@ -49,10 +49,27 @@ The project is designed for use cases like fraternity rush, hiring panels, or st
 
 ## Roadmap
 
-- User authentication (email-based accounts)
-- Event-based grouping (e.g. rush events)
-- Per-user submissions
-- Improved NLP trait clustering
-- UI polish and animations
+### Phase 1 (Done)
+- Clerk auth (signup/login + email verification)
+- Protected routes
+
+### Phase 2 (Next)
+- Event-based structure (no global candidates)
+- Invite system (link + email)
+- Per-event roles: owner/admin/member
+- Event-scoped candidates and submissions
+
+### Phase 3 (Later)
+- NLP improvements (better clustering, fewer missed traits, stronger semantic grouping)
+
+### Phase 4 (Later)
+- UI polish + consistent navigation + better dashboards
 
 
+
+## Authentication
+
+Authentication is handled via Clerk (email/password with verification). Most routes are protected; public routes include:
+- `/`
+- `/login/*`
+- `/signup/*`

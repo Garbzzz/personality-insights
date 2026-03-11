@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { Badge, Button, Card, CardBody, Pill } from "../components/ui";
+import { useUser } from "@clerk/nextjs";
 
 type Candidate = { id: number; name: string; created_at: string };
 type Submission = {
@@ -22,6 +23,11 @@ function approval(yes: number, no: number) {
 
 export default function CandidatesClient() {
   const router = useRouter();
+  const { user, isLoaded } = useUser();
+  const userId = user?.id ?? "";
+  const headers: Record<string, string> = userId
+  ? { "X-User-Id": userId }
+  : {};
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [subsById, setSubsById] = useState<Record<number, Submission[]>>({});
@@ -37,13 +43,18 @@ export default function CandidatesClient() {
 
   async function load() {
     setMsg(null);
-    const list = await apiGet<Candidate[]>("/candidates");
+    const list = await apiGet<Candidate[]>("/candidates", { headers });
     setCandidates(list);
 
     const entries = await Promise.all(
       list.map(
         async (c) =>
-          [c.id, await apiGet<Submission[]>(`/candidates/${c.id}/submissions`)] as const
+          [
+            c.id,
+            await apiGet<Submission[]>(`/candidates/${c.id}/submissions`, {
+              headers,
+            }),
+          ] as const
       )
     );
 
@@ -53,8 +64,11 @@ export default function CandidatesClient() {
   }
 
   useEffect(() => {
+    if (!isLoaded) return;
+    if (!userId) return;
+  
     let alive = true;
-
+  
     (async () => {
       try {
         await load();
@@ -69,18 +83,18 @@ export default function CandidatesClient() {
         setMsg(m);
       }
     })();
-
+  
     return () => {
       alive = false;
     };
-  }, []);
+  }, [isLoaded, userId]);
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
     const name = newName.trim();
     if (!name) return;
 
-    await apiPost("/candidates", { name });
+    await apiPost("/candidates", { name }, { headers });
     setNewName("");
     await load();
   }
@@ -95,7 +109,7 @@ export default function CandidatesClient() {
     const name = editName.trim();
     if (!name) return;
 
-    await apiPatch(`/candidates/${editingId}`, { name });
+    await apiPatch(`/candidates/${editingId}`, { name }, { headers });
     setEditingId(null);
     setEditName("");
     await load();
@@ -107,7 +121,7 @@ export default function CandidatesClient() {
 
   async function confirmDeleteNow() {
     if (!confirmDelete) return;
-    await apiDelete(`/candidates/${confirmDelete.id}`);
+    await apiDelete(`/candidates/${confirmDelete.id}`, { headers });
     setConfirmDelete(null);
     await load();
   }
@@ -119,14 +133,20 @@ export default function CandidatesClient() {
   return (
     <>
       {/* Create */}
-      <form onSubmit={onCreate} className="mt-6 flex flex-wrap items-center gap-3">
+      <form
+        onSubmit={onCreate}
+        className="mt-6 flex flex-wrap items-center gap-3"
+      >
         <input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           placeholder="New candidate name"
           className="min-w-[260px] rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-slate-100 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-white/15"
         />
-        <Button type="submit" className="bg-slate-200 text-slate-900 hover:bg-white">
+        <Button
+          type="submit"
+          className="bg-slate-200 text-slate-900 hover:bg-white"
+        >
           Add Candidate
         </Button>
         {msg ? <span className="text-sm text-slate-300">{msg}</span> : null}
@@ -193,7 +213,10 @@ export default function CandidatesClient() {
 
                 {/* Edit row */}
                 {isEditing ? (
-                  <div className="mt-4 flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="mt-4 flex flex-wrap items-center gap-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <input
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
@@ -250,8 +273,8 @@ export default function CandidatesClient() {
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-950/80 p-6 backdrop-blur">
             <div className="text-lg font-bold">Delete candidate?</div>
             <p className="mt-2 text-sm text-slate-300">
-              This will permanently delete <b>{confirmDelete.name}</b> and all of their
-              submissions.
+              This will permanently delete <b>{confirmDelete.name}</b> and all of
+              their submissions.
             </p>
 
             <div className="mt-6 flex justify-end gap-2">
@@ -267,8 +290,8 @@ export default function CandidatesClient() {
                       err instanceof Error
                         ? err.message
                         : typeof err === "string"
-                        ? err
-                        : "Delete failed";
+                          ? err
+                          : "Delete failed";
                     setMsg(m);
                   });
                 }}

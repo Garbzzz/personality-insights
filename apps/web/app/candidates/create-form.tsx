@@ -2,8 +2,15 @@
 
 import { useState } from "react";
 import { apiPost } from "@/lib/api";
+import { useUser } from "@clerk/nextjs";
 
 export default function CreateCandidateForm() {
+  const { user } = useUser();
+  const userId = user?.id ?? "";
+  const headers: Record<string, string> = userId
+  ? { "X-User-Id": userId }
+  : {};
+
   const [name, setName] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -17,7 +24,7 @@ export default function CreateCandidateForm() {
       return;
     }
 
-    await apiPost("/candidates", { name: trimmed });
+    await apiPost("/candidates", { name: trimmed }, { headers });
     setName("");
     setMsg("Created! Refreshing...");
     window.location.reload();

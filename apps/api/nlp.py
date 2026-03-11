@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import re
+import random
 from dataclasses import dataclass
 from typing import List, Tuple, Dict
 
 import spacy
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from embeddings import embed_texts
+from qdrant_utils import search_trait, upsert_trait
 
 # Load once at import (fine for dev + small apps)
 _NLP = spacy.load("en_core_web_sm")
@@ -38,45 +41,6 @@ def sentence_polarity(sentence: str) -> int:
     if compound <= -0.15:
         return -1
     return 0
-
-
-def extract_candidate_phrases(sentence: str) -> List[str]:
-    #
-    #Extracts trait-like phrases from a sentence using noun chunks.
-    #Example: "very funny and outgoing" -> ["funny", "outgoing"]
-    #
-    doc = _NLP(sentence)
-
-    phrases: List[str] = []
-
-    # Noun chunks are a good baseline for "traits" / "issues"
-    for chunk in doc.noun_chunks:
-        text = normalize_phrase(chunk.text)
-        if not text:
-            continue
-        # Drop super-generic chunks
-        if text in {"he", "she", "they", "him", "her", "them", "person", "guy", "kid", "student"}:
-            continue
-        # Avoid chunks that are too long
-        if len(text.split()) > 5:
-            continue
-        phrases.append(text)
-
-    # Fallback: grab adjective tokens (often traits)
-    for token in doc:
-        if token.pos_ == "ADJ":
-            text = normalize_phrase(token.lemma_)
-            if text and text not in phrases:
-                phrases.append(text)
-
-    # Dedup while preserving order
-    seen = set()
-    out = []
-    for p in phrases:
-        if p not in seen:
-            seen.add(p)
-            out.append(p)
-    return out
 
 
 def split_on_contrast(text: str) -> List[str]:
@@ -397,10 +361,8 @@ def canonicalize(trait: str) -> str:
 
     # Apply synonym map (controlled merges)
     return apply_synonyms(cleaned)
-from embeddings import embed_texts
-from qdrant_utils import search_trait, upsert_trait
 
-import random
+
 _NEXT_ID = random.randint(100000, 999999)
 
 

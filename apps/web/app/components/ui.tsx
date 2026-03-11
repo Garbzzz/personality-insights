@@ -44,6 +44,7 @@ export function Button({
   onClick,
   variant = "primary",
   href,
+  disabled,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -51,6 +52,7 @@ export function Button({
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
   variant?: "primary" | "ghost" | "outline";
   href?: string;
+  disabled?: boolean;
 }) {
   const base =
     "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition";
@@ -65,7 +67,7 @@ export function Button({
 
   if (href) return <Link href={href} className={cls}>{children}</Link>;
   return (
-    <button type={type} onClick={onClick} className={cls}>
+    <button type={type} onClick={onClick} className={cls} disabled={disabled}>
       {children}
     </button>
   );

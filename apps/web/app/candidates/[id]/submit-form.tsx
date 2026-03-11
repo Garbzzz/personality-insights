@@ -3,25 +3,42 @@
 import { useState } from "react";
 import { apiPost } from "@/lib/api";
 import { useRouter } from "next/navigation";
-
+import { useUser } from "@clerk/nextjs";
 
 export default function SubmitForm({ candidateId }: { candidateId: number }) {
+  const { user, isLoaded } = useUser();
+  const userId = user?.id ?? "";
+  const headers: Record<string, string> = userId
+  ? { "X-User-Id": userId }
+  : {};
+
   const [vote, setVote] = useState<number>(0);
   const [comment, setComment] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const router = useRouter();
 
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
 
-    await apiPost(`/candidates/${candidateId}/submissions`, { vote, comment });
+    if (!isLoaded || !userId) {
+      setMsg("You must be signed in to submit a vote.");
+      return;
+    }
 
-    setComment("");
+    try {
+      await apiPost(
+        `/candidates/${candidateId}/submissions`,
+        { vote, comment },
+        { headers }
+      );
 
-    router.refresh();
-
+      setMsg("Submitted!");
+      setComment("");
+      router.refresh();
+    } catch {
+      setMsg("Failed to submit. Please try again.");
+    }
   }
 
   return (
